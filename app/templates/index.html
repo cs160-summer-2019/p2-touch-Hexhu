@@ -31,7 +31,7 @@
 		.large-box {
 			width: 100%;
 			height: 300px;
-			background: #0d124a;
+			background: #B481BB;
 			padding: 5px;
 			margin: 0 10px 10px 0;
 			display: flex;
@@ -40,12 +40,13 @@
 		}
 
 		.small-box {
-			width: 100px;
-			height: 100px;
-			background: #7ce6df;
+			width: 200px;
+			height: 200px;
+			background: #A8D8B9;
 			display: flex;
 			align-items: center;
 			justify-content: center;
+			overflow-wrap: break-word;
 		}
 
 		.action-complete {
@@ -62,16 +63,16 @@
 				<h3>Task 4</h3>
 				<div class="box-container">
 					<div class="large-box">
-						<div class="small-box" id="rotate-box">Rotate</div>
+						<div class="small-box" id="rotate-box">Rotate Me</div>
 					</div>
 					<div class="large-box">
-						<div class="small-box" id="pinch-box">Pinch</div>
+						<div class="small-box" id="pinch-box">Pinch to zoom</div>
 					</div>
 					<div class="large-box">
-						<div class="small-box" id="press-box">Press</div>
+						<div class="small-box" id="press-box">Press to change color</div>
 					</div>
 					<div class="large-box">
-						<div class="small-box" id="pan-box">Pan</div>
+						<div class="small-box" id="pan-box">Pan to fly around</div>
 					</div>
 					<div class="large-box">
 						<div class="small-box" id="tap-box">Tap</div>
@@ -84,7 +85,138 @@
 		</div>
 	</div>
 	<script>
-	  // your solution here
+		// Inspired by hammerjs.github.io/examples/
+		// Complication is from https://github.com/hammerjs/hammer.js/issues/914
+		// Implementation is based on codepen.io/munrocket/pen/dayZJg by github.com/munrocket
+
+
+
+		/*var rotate = new Hammer.Rotate()
+		var pinch = new Hammer.Pinch();
+		var pan = new Hammer.Pan();
+		rotate.requireFailure([pinch, pan])
+		pinch.requireFailure([rotate, pan])*/
+		
+		/*var rotateBoxElement = document.getElementById('rotate-box');
+		var rotateCtrl = new Hammer.Manager(rotateBoxElement);
+		rotateCtrl.add(rotate);
+		rotateCtrl.on("rotatestart rotatemove rotateend rotatecancel", function(ev) {
+				rotateBoxElement.textContent += ev.type +" ";
+		});*/
+
+
+		
+		let rotateBoxElement = document.getElementById('rotate-box');
+		let rotateCtrl = new Hammer.Manager(rotateBoxElement);
+		let rotatePan = new Hammer.Pan();
+		let rotate = new Hammer.Rotate();
+		let rotatePinch = new Hammer.Pinch();
+		rotateCtrl.add([rotatePan, rotatePinch, rotate]);
+		rotateCtrl.get('pinch').set({ enable: true });
+		rotateCtrl.get('rotate').set({ enable: true });
+
+		let adjustRotation = 0;
+		let currentRotation = null;
+
+		rotateCtrl.on("panstart pinchstart rotatestart", function(e) {
+			adjustRotation -= e.rotation;
+		});
+
+		rotateCtrl.on("panmove pinchmove rotatemove", function(e) {
+			currentRotation = adjustRotation + e.rotation;
+			rotateBoxElement.style.transform = 'rotate(' + Math.round(currentRotation) + 'deg)';
+		});
+
+		rotateCtrl.on("panend pinchend rotateend", function(e) {
+			adjustRotation = currentRotation;
+		});
+
+
+
+		var pinchBoxElement = document.getElementById('pinch-box');
+		var pinchCtrl = new Hammer.Manager(pinchBoxElement);
+		let pinch = new Hammer.Pinch();
+		pinchCtrl.add(pinch);
+
+		let adjustScale = 1;
+		let currentScale = null;
+
+		pinchCtrl.on("pinchmove", function(e) {
+  		currentScale = adjustScale * e.scale;
+			pinchBoxElement.style.transform = ['scale(' + currentScale + ')'];
+		});
+
+		var pressBoxElement = document.getElementById('press-box');
+		var pressCtrl = new Hammer(pressBoxElement);
+		pressCtrl.on("press", function(ev) {
+			// Inspired by qnimate.com/generating-random-colors-in-javascript/
+			function getRandomInt(max) { 
+				return Math.floor(Math.random() * Math.floor(max)); 
+			};
+			var r = getRandomInt(256);
+			var g = getRandomInt(256);
+			var b = getRandomInt(256);
+			pressBoxElement.style.backgroundColor = "rgb(" + r + "," + g + "," + b + ")";
+			pressBoxElement.textContent = "rgb (" + r + ", " + g + ", " + b + ")";
+		});
+
+
+
+		// TODO: double clicks can cause sudden moves
+		var panBoxElement = document.getElementById('pan-box');
+		var panCtrl = new Hammer(panBoxElement);
+
+		let adjustDeltaX = 0;
+		let adjustDeltaY = 0;
+		let currentDeltaX = null;
+		let currentDeltaY = null;
+
+		/*panCtrl.on("panleft panright", function(ev) {
+				panBoxElement.textContent = ev.type +" gesture detected.";
+		});*/
+		panCtrl.on("panchmove panleft panright", function(e) {
+			currentDeltaX = adjustDeltaX + (e.deltaX);
+			currentDeltaY = adjustDeltaY + (e.deltaY);
+			panBoxElement.style.transform = ['translate(' + currentDeltaX + 'px,' + currentDeltaY + 'px)'];
+		});
+
+
+
+		var tabBoxElement = document.getElementById('tap-box');
+		// We create a manager object, which is the same as Hammer(), but without the presetted recognizers. 
+		var tapCtrl = new Hammer.Manager(tabBoxElement);
+		// Default, tap recognizer
+		tapCtrl.add( new Hammer.Tap() );
+		// Tap recognizer with minimal 4 taps
+		//tapCtrl.add( new Hammer.Tap({ event: 'quadrupletap', taps: 4 }) );
+		// we want to recognize this simulatenous, so a quadrupletap will be detected even while a tap has been recognized.
+		// the tap event will be emitted on every tap
+		//tapCtrl.get('quadrupletap').recognizeWith('tap');
+		//tapCtrl.on("tap quadrupletap", function(ev) {
+		tapCtrl.on("tap", function(ev) {
+			if (tabBoxElement.textContent === "Tap") 
+			  tabBoxElement.textContent = 0;
+			else 
+			  tabBoxElement.textContent = parseInt(tabBoxElement.textContent) + 1;
+		});
+
+
+
+		// PoC from patrickhlauke.github.io/touch/hammer/swipe/, credit to github.com/patrickhlauke.
+		var swipeBoxElement = document.getElementById('swipe-box');
+		var swipeCtrl = new Hammer(swipeBoxElement);
+		// By default only vertical swipes.
+		//swipeCtrl.get('swipe').set({ direction: Hammer.DIRECTION_ALL });
+		//swipeCtrl.on('swipeleft swiperight swipeup swipedown', function(ev) {
+		swipeCtrl.on("swipeleft swiperight", function(ev) {tabBoxElement
+			if (swipeBoxElement.textContent === "Swipe") 
+			  swipeBoxElement.textContent = 1;
+
+			if (ev.type === "swipeleft")
+			  swipeBoxElement.textContent = parseInt(swipeBoxElement.textContent) + 1;
+			else 
+				swipeBoxElement.textContent = parseInt(swipeBoxElement.textContent) - 1;
+		});
   </script>
 </body>
 </html>
